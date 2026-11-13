@@ -11,7 +11,7 @@ Technical names (metadata keys, topics) are in English; the settings form is in 
 
 | Choice | Setting | Options |
 |---|---|---|
-| What is counted | `measure` | `count` - the number of times a sensor becomes active, or goes above / below `threshold` (`event`)<br>`distinct` - the number of different sensors with such an event<br>`increase` - how much a meter reading went up (a meter that starts over counts from 0) |
+| What is counted | `measure` | `count` - the number of times a sensor becomes active, or goes above / below `threshold` (`event`)<br>`distinct` - the number of different sensors with such an event<br>`increase` - how much a meter reading went up (water, power; a meter that starts over counts from 0)<br>`rise` / `fall` - how much a level went up or down (a temperature, a tank, a battery): the value now against the value when the window began, the largest change among the sensors |
 | The window | `window` | `rolling` - the last `window_min` minutes<br>`schedule` - fixed times `schedule_from`-`schedule_to` on `schedule_days`, local time (`timezone`, default Sweden) |
 | The limit | `limit_kind`, `limit` | `at_most` - alarm as soon as the value goes above the limit<br>`at_least` - alarm when the window had less: a rolling window after one whole window since the first start, a scheduled window when it closes |
 | The alarm | - | a function of the app's own, see below |
@@ -23,6 +23,13 @@ Technical names (metadata keys, topics) are in English; the settings form is in 
 | Back yard | `distinct` motion sensors | rolling 2 min | at most 1 |
 | Fridge compressor | `count`, power `above` 30 | rolling 120 min | at least 1 |
 | Night noise | `count` of noises | 23:00-06:00 | at most 2 |
+| Leaking tank | `fall` of the level | rolling 60 min | at most 200 |
+| Open window | `fall` of the temperature | rolling 60 min | at most 5 |
+| Stove, fire | `rise` of the temperature | rolling 30 min | at most 8 |
+| Tank not filled | `rise` of the level | rolling 24 h | at least 100 |
+
+A level is compared with its value when the window began, so noise up and down does not add up. "Too cold right
+now" needs no change at all: count `below` a threshold instead.
 
 ## The alarm
 

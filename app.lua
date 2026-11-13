@@ -5,6 +5,8 @@
 --       count     the number of times a function becomes active, or goes above or below a value (an event)
 --       distinct  the number of different functions with an event
 --       increase  how much a meter reading went up (a reset of the meter counts from 0)
+--       rise      how much a level went up over the window: the value now against the value when the window began
+--       fall      the same, down (a temperature, a tank, a battery; noise up and down does not add up)
 --   - the window: rolling (the last N minutes) or scheduled (for example 23:00-06:00 on chosen days, local time)
 --   - the limit: at most N (alarm as soon as it is passed) or at least N (alarm when the window had too little:
 --     a rolling window after one whole window since start, a scheduled window when it closes)
@@ -20,7 +22,7 @@
 -- two are kept in step both ways, and whoever changed last wins, as in För länge 0.4. Events, the alarm and the form
 -- the app last applied are kept retained on the local broker, so a restart goes on where it was.
 
-local VERSION = "0.1.0"
+local VERSION = "0.2.0"
 local PREFIX = "limit"
 local TICK_S = 10
 local SYNC_WAIT_S = 3
@@ -174,7 +176,7 @@ function M.settings(c)
   local s = {
     name = str(c.name) ~= "" and str(c.name) or "Gränsvakt",
     group = M.slug(c.group) ~= "" and M.slug(c.group) or (PREFIX .. "-" .. tostring(app and app.id or 0)),
-    measure = ({ count = "count", distinct = "distinct", increase = "increase" })[str(c.measure)] or "count",
+    measure = ({ count = "count", distinct = "distinct", increase = "increase", rise = "rise", fall = "fall" })[str(c.measure)] or "count",
     event = ({ active = "active", above = "above", below = "below" })[str(c.event)] or "active",
     threshold = tonumber(c.threshold),
     active_value = str(c.active_value),
@@ -201,7 +203,7 @@ local Rule = {}
 Rule.__index = Rule
 
 function M.rule(settings)
-  return setmetatable({ settings = settings, events = {}, last = {}, on = {}, since = nil, alarm = 0, acked = false,
+  return setmetatable({ settings = settings, events = {}, last = {}, on = {}, readings = {}, since = nil, alarm = 0, acked = false,
     period = nil, verdict = nil }, Rule)
 end
 
@@ -218,6 +220,15 @@ end
 --- A value from function `id`; returns true when it added an event.
 function Rule:value(id, fn, value, ts)
   local s = self.settings
+  if s.measure == "rise" or s.measure == "fall" then
+    local v = tonumber(value)
+    if v == nil then return false end
+    local list = self.readings[id] or {}
+    self.readings[id] = list
+    if #list > 0 and list[#list].v == v then return false end
+    list[#list + 1] = { ts = ts, v = v }
+    return true
+  end
   if s.measure == "increase" then
     local v = tonumber(value)
     if v == nil then return false end
@@ -246,8 +257,35 @@ function Rule:value(id, fn, value, ts)
   return true
 end
 
+--- The largest change of a level over [from, to): the last value before `to` against the value when the window
+--- began (the last one at or before `from`, or else the first one in the window), and the function it was.
+function Rule:change(from, to)
+  local best, best_id = 0, nil
+  local list_ids = {}
+  for id in pairs(self.readings) do list_ids[#list_ids + 1] = id end
+  table.sort(list_ids)
+  for _, id in ipairs(list_ids) do
+    local start, stop
+    for _, r in ipairs(self.readings[id]) do
+      if r.ts <= from then start = r.v end
+      if r.ts > from and r.ts < to and start == nil then start = r.v end
+      if r.ts < to then stop = r.v end
+    end
+    if start and stop then
+      local d = self.settings.measure == "rise" and stop - start or start - stop
+      if d > best then best, best_id = d, id end
+    end
+  end
+  return best, best_id
+end
+
 --- The measure over events in [from, to).
 function Rule:measure(from, to)
+  if self.settings.measure == "rise" or self.settings.measure == "fall" then
+    local d, id = self:change(from, to)
+    self.change_id = id
+    return d
+  end
   local total, seen, n = 0, {}, 0
   for _, e in ipairs(self.events) do
     if e.ts >= from and e.ts < to then
@@ -320,6 +358,16 @@ function Rule:prune(now)
   for _, e in ipairs(self.events) do if now - e.ts <= keep_s then out[#out + 1] = e end end
   while #out > MAX_EVENTS do table.remove(out, 1) end
   self.events = out
+  -- levels: the readings in the window, and the last one before it (the value when the window began)
+  for id, list in pairs(self.readings) do
+    local keep, before = {}, nil
+    for _, r in ipairs(list) do
+      if now - r.ts <= keep_s then keep[#keep + 1] = r else before = r end
+    end
+    if before then table.insert(keep, 1, before) end
+    while #keep > MAX_EVENTS do table.remove(keep, 1) end
+    self.readings[id] = keep
+  end
 end
 
 --- The state as text for the retained topic: since, alarm, acked, period, verdict, then events and meter readings.
@@ -340,6 +388,14 @@ function Rule:dump()
   for id, v in pairs(self.on) do if v then on[#on + 1] = tostring(id) end end
   table.sort(on)
   parts[#parts + 1] = "on=" .. table.concat(on, ",")
+  local rd = {}
+  for id, list in pairs(self.readings) do
+    local x = { tostring(id) }
+    for _, r in ipairs(list) do x[#x + 1] = r.ts .. ":" .. r.v end
+    rd[#rd + 1] = table.concat(x, "/")
+  end
+  table.sort(rd)
+  parts[#parts + 1] = "readings=" .. table.concat(rd, ",")
   return table.concat(parts, ";")
 end
 
@@ -359,6 +415,15 @@ function Rule:load(text)
   end
   for id, v in tostring(f.last or ""):gmatch("(%d+):([%d%.e%-]+)") do self.last[tonumber(id)] = tonumber(v) end
   for id in tostring(f.on or ""):gmatch("%d+") do self.on[tonumber(id)] = true end
+  self.readings = {}
+  for item in tostring(f.readings or ""):gmatch("[^,]+") do
+    local id = tonumber(item:match("^(%d+)"))
+    if id then
+      local list = {}
+      for ts, v in item:gmatch("/(%d+):([%d%.e%-]+)") do list[#list + 1] = { ts = tonumber(ts), v = tonumber(v) } end
+      self.readings[id] = list
+    end
+  end
 end
 
 M.Rule = Rule
@@ -506,7 +571,15 @@ local function pub(topic, value, msg, retain)
   mq:pub(topic, json:encode({ value = value, msg = msg or "", timestamp = now() }), retain == true, 1)
 end
 
+local function label(id)
+  local fn = state.watched[id]
+  return fn and first_set((fn.meta or {})[PREFIX .. ".label"], (fn.meta or {}).name) or tostring(id)
+end
+
 local function labels_of(w)
+  if state.settings.measure == "rise" or state.settings.measure == "fall" then
+    return state.rule.change_id and label(state.rule.change_id) or ""
+  end
   local seen, out = {}, {}
   for _, e in ipairs(state.rule.events) do
     if w and e.ts >= w.start and e.ts < w.stop and not seen[e.id] then
