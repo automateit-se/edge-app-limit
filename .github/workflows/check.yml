@@ -1,0 +1,37 @@
+name: check
+on:
+  push:
+    branches: [main]
+  pull_request:
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Lua 5.3
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq lua5.3 > /dev/null
+      - name: Lua syntax
+        run: luac5.3 -p app.lua tests/test_app.lua tests/sim.lua
+      - name: Tests
+        run: lua5.3 tests/test_app.lua
+      - name: IoT Open limits
+        run: |
+          # app_lua is stored in a 64 kB TEXT column
+          size=$(wc -c < app.lua)
+          echo "app.lua: $size bytes"
+          test "$size" -lt 65535
+      - name: JSON files
+        run: |
+          for f in app.json edge-app.json; do python3 -m json.tool "$f" > /dev/null && echo "$f ok"; done
+          python3 - <<'PY'
+          import json
+          app = json.load(open('app.json'))
+          inputs = app['input']
+          for page in app['guide']:
+              for name in page['input_fields']:
+                  assert name in inputs, f'{name} in the guide but not in input'
+          for name, spec in inputs.items():
+              if spec['type'] == 'number':
+                  assert spec['min'] <= spec['default'] <= spec['max'], name
+          print(len(inputs), 'inputs ok')
+          PY

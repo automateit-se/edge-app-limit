@@ -1,0 +1,12 @@
+{
+  "name": "Gränsvakt",
+  "category": "notification",
+  "short_description": "Larmar när något hänt för mycket eller för lite under en tid, till exempel mycket vatten på en timme, tre bilar på tio minuter eller en kompressor som inte gått på två timmar.",
+  "tags": [
+    "notification",
+    "alarm",
+    "water",
+    "traffic",
+    "energy"
+  ]
+}

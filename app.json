@@ -1,0 +1,216 @@
+{
+  "author": "AutomateIT",
+  "license": "MIT",
+  "input": {
+    "name": {
+      "type": "text",
+      "name": "Namn",
+      "description": "Vad regeln heter, till exempel Vatten i köket. Står med i larmet.",
+      "required": true
+    },
+    "watch": {
+      "type": "repeat",
+      "name": "Givare",
+      "description": "Det som räknas.",
+      "input_fields": [
+        "watch_function",
+        "watch_label"
+      ],
+      "min": 0,
+      "max": 50
+    },
+    "watch_function": {
+      "type": "single_function_selector",
+      "name": "Givare",
+      "required": true
+    },
+    "watch_label": {
+      "type": "text",
+      "name": "Namn i larmet",
+      "description": "Till exempel rörelsevakten på altanen. Tomt: funktionens namn."
+    },
+    "measure": {
+      "type": "option",
+      "name": "Vad räknas",
+      "values": {
+        "count": "Antal gånger",
+        "distinct": "Antal olika givare",
+        "increase": "Hur mycket en mätare ökat"
+      },
+      "default": "count",
+      "required": true
+    },
+    "event": {
+      "type": "option",
+      "name": "En gång är när givaren",
+      "description": "Gäller Antal gånger och Antal olika givare.",
+      "values": {
+        "active": "blir aktiv",
+        "above": "går över gränsvärdet",
+        "below": "går under gränsvärdet"
+      },
+      "default": "active"
+    },
+    "threshold": {
+      "type": "number",
+      "name": "Gränsvärde",
+      "description": "Bara för över eller under, till exempel 30 (W).",
+      "default": 0,
+      "min": -1000000,
+      "max": 1000000
+    },
+    "window": {
+      "type": "option",
+      "name": "Tidsfönster",
+      "values": {
+        "rolling": "Rullande, de senaste minuterna",
+        "schedule": "Fasta tider"
+      },
+      "default": "rolling",
+      "required": true
+    },
+    "window_min": {
+      "type": "number",
+      "name": "Minuter (rullande)",
+      "default": 60,
+      "min": 1,
+      "max": 10080
+    },
+    "schedule_from": {
+      "type": "text",
+      "name": "Från (fasta tider)",
+      "description": "Till exempel 23:00.",
+      "default": "23:00",
+      "validator": "^$|^([01]?[0-9]|2[0-3])[:.][0-5][0-9]$",
+      "on_error": "Ange en tid, till exempel 23:00"
+    },
+    "schedule_to": {
+      "type": "text",
+      "name": "Till (fasta tider)",
+      "description": "Till exempel 06:00. Före starttiden betyder över midnatt.",
+      "default": "06:00",
+      "validator": "^$|^([01]?[0-9]|2[0-4])[:.][0-5][0-9]$",
+      "on_error": "Ange en tid, till exempel 06:00"
+    },
+    "schedule_days": {
+      "type": "checkbox",
+      "name": "Dagar (fasta tider)",
+      "description": "Dagen fönstret börjar. Inga valda: alla dagar.",
+      "values": {
+        "mon": "Måndag",
+        "tue": "Tisdag",
+        "wed": "Onsdag",
+        "thu": "Torsdag",
+        "fri": "Fredag",
+        "sat": "Lördag",
+        "sun": "Söndag"
+      },
+      "default": [
+        "mon",
+        "tue",
+        "wed",
+        "thu",
+        "fri",
+        "sat",
+        "sun"
+      ]
+    },
+    "limit_kind": {
+      "type": "option",
+      "name": "Larma när det är",
+      "values": {
+        "at_most": "för mycket (mer än gränsen)",
+        "at_least": "för lite (mindre än gränsen)"
+      },
+      "default": "at_most",
+      "required": true
+    },
+    "limit": {
+      "type": "number",
+      "name": "Gräns",
+      "description": "För mycket: larm när värdet går över. För lite: larm när det är mindre.",
+      "default": 1,
+      "min": 0,
+      "max": 1000000,
+      "required": true
+    },
+    "active_modes": {
+      "type": "text",
+      "name": "Gäller i lägena",
+      "description": "Valfritt. Lägen från appen Läge, skrivna som de visas, till exempel Borta, Semester. Tomt: gäller alltid."
+    },
+    "event_gap_s": {
+      "type": "number",
+      "name": "Samma givare räknas högst var (sekunder)",
+      "description": "En bil eller ett ljud som ger flera värden räknas en gång. 0 = varje gång.",
+      "default": 0,
+      "min": 0,
+      "max": 86400
+    },
+    "timezone": {
+      "type": "option",
+      "name": "Tidszon",
+      "values": {
+        "Europe/Stockholm": "Sverige",
+        "Europe/Oslo": "Norge",
+        "Europe/Copenhagen": "Danmark",
+        "Europe/Helsinki": "Finland",
+        "Europe/London": "Storbritannien",
+        "UTC": "UTC"
+      },
+      "default": "Europe/Stockholm"
+    },
+    "group": {
+      "type": "text",
+      "name": "Gruppnamn",
+      "description": "Kopplingen till givarna i IoT Open (metadata limit.group). Tomt: ett eget namn för den här installationen av appen."
+    },
+    "active_value": {
+      "type": "text",
+      "name": "Värde som betyder aktiv",
+      "description": "Tomt: givarens state_open, state_on eller state_true, annars 1."
+    },
+    "mode_name": {
+      "type": "text",
+      "name": "Vilket läge",
+      "description": "Bara om installationen har flera lägen.",
+      "default": "default",
+      "validator": "^[a-z0-9_-]+$",
+      "on_error": "Små bokstäver, siffror, _ och -"
+    }
+  },
+  "guide": [
+    {
+      "id": "basic",
+      "title": "Regel",
+      "description": "Vad som räknas, under vilken tid, och när det är för mycket eller för lite. Larmet blir en egen funktion som dashboarden, aviseringar eller För länge kan använda.",
+      "input_fields": [
+        "name",
+        "watch",
+        "measure",
+        "event",
+        "threshold",
+        "window",
+        "window_min",
+        "schedule_from",
+        "schedule_to",
+        "schedule_days",
+        "limit_kind",
+        "limit",
+        "active_modes"
+      ]
+    },
+    {
+      "id": "advanced",
+      "title": "Avancerat",
+      "description": "Behövs sällan.",
+      "input_fields": [
+        "event_gap_s",
+        "timezone",
+        "group",
+        "active_value",
+        "mode_name"
+      ]
+    }
+  ]
+}
