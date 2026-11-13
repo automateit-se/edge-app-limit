@@ -35,8 +35,11 @@
       "values": {
         "count": "Antal gånger",
         "distinct": "Antal olika givare",
-        "increase": "Hur mycket en mätare ökat"
+        "increase": "Hur mycket en mätare ökat (vatten, el)",
+        "rise": "Hur mycket ett värde ökat (temperatur, nivå)",
+        "fall": "Hur mycket ett värde minskat (temperatur, nivå)"
       },
+      "description": "En mätare räknar bara uppåt; en nolla betyder att den börjat om. Ett värde som temperatur eller nivå jämförs med värdet när tidsfönstret började.",
       "default": "count",
       "required": true
     },

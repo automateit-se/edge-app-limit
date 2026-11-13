@@ -76,6 +76,59 @@ check("a meter that starts over counts from 0", function()
   eq(r:measure(T0, T0 + 120), 5, "from 0")
 end)
 
+check("a tank that falls more than 200 l in an hour raises the alarm and names the tank", function()
+  local fns = { fn(101, "obj/a", "Tank", { ["limit.group"] = "test", ["limit.label"] = "vattentanken" }) }
+  local _, _, sim = rule({ measure = "fall", window = "rolling", window_min = 60, limit_kind = "at_most", limit = 200 }, fns)
+  sim.value("obj/a", 1000)
+  for i = 1, 5 do sim.advance(10 * 60) sim.value("obj/a", 1000 - 45 * i) end
+  eq(sim.last(ALARM).value, 1, "225 l in 50 minutes")
+  assert(sim.last(ALARM).msg:find("vattentanken", 1, true), sim.last(ALARM).msg)
+  sim.advance(90 * 60)
+  eq(sim.last(ALARM).value, 0, "steady again")
+end)
+
+check("noise up and down does not add up; the change is now against the start of the window", function()
+  local _, _, sim = rule({ measure = "fall", window = "rolling", window_min = 60, limit_kind = "at_most", limit = 1 })
+  for i = 1, 60 do sim.value("obj/a", 20 + (i % 2 == 0 and 0.4 or -0.4)) sim.advance(60) end
+  eq(sim.last(ALARM), nil, "a whole hour of noise of 0.8 degrees")
+  sim.value("obj/a", 18)
+  eq(sim.last(ALARM).value, 1, "a real fall")
+end)
+
+check("a rise counts from the value when the window began, also one reported before it", function()
+  local _, _, sim = rule({ measure = "rise", window = "schedule", schedule_from = "10:00", schedule_to = "12:00", limit_kind = "at_most", limit = 5 })
+  sim.value("obj/a", 20) -- 09:40 local, before the window
+  sim.advance(50 * 60)   -- 10:30
+  sim.value("obj/a", 24)
+  eq(sim.last(ALARM), nil, "4 degrees")
+  sim.advance(10 * 60)
+  sim.value("obj/a", 26)
+  eq(sim.last(ALARM).value, 1, "6 degrees since 10:00")
+end)
+
+check("at least a rise: a tank that is not filled up within a day", function()
+  local _, _, sim = rule({ measure = "rise", window = "rolling", window_min = 1440, limit_kind = "at_least", limit = 100 })
+  sim.value("obj/a", 300)
+  sim.advance(12 * H) sim.value("obj/a", 250)
+  sim.advance(12 * H + 60)
+  eq(sim.last(ALARM).value, 1, "not filled in 24 h")
+  sim.value("obj/a", 900)
+  eq(sim.last(ALARM).value, 0, "filled")
+end)
+
+check("levels survive a restart", function()
+  local c = { name = "Test", group = "test", measure = "fall", window = "rolling", window_min = 60, limit_kind = "at_most", limit = 3 }
+  local fns = { fn(101, "obj/a", "A", { ["limit.group"] = "test" }) }
+  local _, env, sim = load_app({ cfg = c, functions = fns })
+  env.onStart()
+  sim.value("obj/a", -1.5)
+  sim.advance(600)
+  local _, env2, sim2 = load_app({ cfg = sim.instance_config, functions = fns, retained = sim.retained, clock = sim.clock + 60 })
+  env2.onStart()
+  sim2.value("obj/a", -5)
+  eq(sim2.last(ALARM).value, 1, "3.5 degrees down across the restart")
+end)
+
 check("traffic: three cars in 10 minutes, a car counted once", function()
   local _, _, sim = rule({ measure = "count", window = "rolling", window_min = 10, limit_kind = "at_most", limit = 2, event_gap_s = 20 })
   local function car() sim.value("obj/a", 1) sim.advance(2) sim.value("obj/a", 0) sim.advance(2) sim.value("obj/a", 1) sim.advance(2) sim.value("obj/a", 0) end
