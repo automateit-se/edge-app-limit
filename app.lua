@@ -4,7 +4,9 @@
 --   - what is counted, from the functions in the form (metadata limit.group):
 --       count     the number of times a function becomes active, or goes above or below a value (an event)
 --       distinct  the number of different functions with an event
---       increase  how much a meter reading went up (a reset of the meter counts from 0)
+--       increase  the sum of all rises (a fall is a restart of the counter and counts from 0): water, power
+--       decrease  the sum of all falls (a rise is a refill and does not count): fuel, a tank, a balance
+--       (both ignore steps smaller than min_step, so a noisy sensor does not add up to use)
 --       rise      how much a level went up over the window: the value now against the value when the window began
 --       fall      the same, down (a temperature, a tank, a battery; noise up and down does not add up)
 --   - the window: rolling (the last N minutes) or scheduled (for example 23:00-06:00 on chosen days, local time)
@@ -22,7 +24,7 @@
 -- two are kept in step both ways, and whoever changed last wins, as in För länge 0.4. Events, the alarm and the form
 -- the app last applied are kept retained on the local broker, so a restart goes on where it was.
 
-local VERSION = "0.2.0"
+local VERSION = "0.3.0"
 local PREFIX = "limit"
 local TICK_S = 10
 local SYNC_WAIT_S = 3
@@ -176,7 +178,7 @@ function M.settings(c)
   local s = {
     name = str(c.name) ~= "" and str(c.name) or "Gränsvakt",
     group = M.slug(c.group) ~= "" and M.slug(c.group) or (PREFIX .. "-" .. tostring(app and app.id or 0)),
-    measure = ({ count = "count", distinct = "distinct", increase = "increase", rise = "rise", fall = "fall" })[str(c.measure)] or "count",
+    measure = ({ count = "count", distinct = "distinct", increase = "increase", decrease = "decrease", rise = "rise", fall = "fall" })[str(c.measure)] or "count",
     event = ({ active = "active", above = "above", below = "below" })[str(c.event)] or "active",
     threshold = tonumber(c.threshold),
     active_value = str(c.active_value),
@@ -187,6 +189,7 @@ function M.settings(c)
     limit_kind = str(c.limit_kind) == "at_least" and "at_least" or "at_most",
     limit = num(c.limit, 1),
     event_gap_s = math.max(0, num(c.event_gap_s, 0)),
+    min_step = math.max(0, num(c.min_step, 0)),
     mode_name = str(c.mode_name) ~= "" and M.slug(c.mode_name) or "default",
     active_modes = {},
   }
@@ -229,14 +232,21 @@ function Rule:value(id, fn, value, ts)
     list[#list + 1] = { ts = ts, v = v }
     return true
   end
-  if s.measure == "increase" then
+  if s.measure == "increase" or s.measure == "decrease" then
     local v = tonumber(value)
     if v == nil then return false end
-    local prev = self.last[id]
+    local ref = self.last[id] -- the value last counted from; steps smaller than min_step leave it
+    if ref == nil then self.last[id] = v return true end
+    local up, step = v - ref, s.min_step
+    local amount = 0
+    if math.abs(up) == 0 or math.abs(up) < step then return false end
+    if s.measure == "increase" then
+      amount = up > 0 and up or v -- a counter that starts over counts from 0
+    else
+      amount = up < 0 and -up or 0 -- a refill does not count
+    end
     self.last[id] = v
-    if prev == nil then return false end
-    local amount = v >= prev and v - prev or v -- a meter that starts over counts from 0
-    if amount <= 0 then return false end
+    if amount <= 0 then return true end
     self.events[#self.events + 1] = { ts = ts, id = id, amount = amount }
     return true
   end

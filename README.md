@@ -11,7 +11,7 @@ Technical names (metadata keys, topics) are in English; the settings form is in 
 
 | Choice | Setting | Options |
 |---|---|---|
-| What is counted | `measure` | `count` - the number of times a sensor becomes active, or goes above / below `threshold` (`event`)<br>`distinct` - the number of different sensors with such an event<br>`increase` - how much a meter reading went up (water, power; a meter that starts over counts from 0)<br>`rise` / `fall` - how much a level went up or down (a temperature, a tank, a battery): the value now against the value when the window began, the largest change among the sensors |
+| What is counted | `measure` | `count` - the number of times a sensor becomes active, or goes above / below `threshold` (`event`)<br>`distinct` - the number of different sensors with such an event<br>`increase` - the sum of all rises; a fall is a restart of the counter and counts from 0 (water, power, a counter counting up)<br>`decrease` - the sum of all falls; a rise is a refill and does not count (fuel, a tank, a balance, a counter counting down)<br>`rise` / `fall` - the change up or down since the window began (a temperature, a level): the value now against the value when the window began, the largest change among the sensors<br>The sums ignore steps smaller than `min_step` (*Avancerat*), so a noisy sensor does not add up to use. |
 | The window | `window` | `rolling` - the last `window_min` minutes<br>`schedule` - fixed times `schedule_from`-`schedule_to` on `schedule_days`, local time (`timezone`, default Sweden) |
 | The limit | `limit_kind`, `limit` | `at_most` - alarm as soon as the value goes above the limit<br>`at_least` - alarm when the window had less: a rolling window after one whole window since the first start, a scheduled window when it closes |
 | The alarm | - | a function of the app's own, see below |
@@ -27,8 +27,12 @@ Technical names (metadata keys, topics) are in English; the settings form is in 
 | Open window | `fall` of the temperature | rolling 60 min | at most 5 |
 | Stove, fire | `rise` of the temperature | rolling 30 min | at most 8 |
 | Tank not filled | `rise` of the level | rolling 24 h | at least 100 |
+| Fuel used in a day, refills left out | `decrease` of the fuel gauge | rolling 24 h | at most 30 |
 
-A level is compared with its value when the window began, so noise up and down does not add up. "Too cold right
+Which one to choose depends on what a change the other way means, not on the kind of sensor: a fall on a water
+meter is a restart, a rise on a fuel gauge is a refill, and a temperature just goes up and down. A change is
+compared with the value when the window began, so noise up and down does not add up; a sum adds every step, so set
+`min_step` a little above the noise. "Too cold right
 now" needs no change at all: count `below` a threshold instead.
 
 ## The alarm
@@ -55,7 +59,8 @@ instance's group, a comma separated list when several rules use the sensor) and 
 step both ways and **whoever changed last wins**, as in För länge 0.4: a change in the form is written to the
 functions, a change of the metadata in IoT Open or another system is written back into the form.
 
-The form has two pages: *Regel* and *Avancerat* (`event_gap_s`, `timezone`, `group`, `active_value`, `mode_name`).
+The form has two pages: *Regel* and *Avancerat* (`event_gap_s`, `min_step`, `timezone`, `group`, `active_value`,
+`mode_name`).
 
 ## Modes
 

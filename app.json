@@ -35,11 +35,12 @@
       "values": {
         "count": "Antal gånger",
         "distinct": "Antal olika givare",
-        "increase": "Hur mycket en mätare ökat (vatten, el)",
-        "rise": "Hur mycket ett värde ökat (temperatur, nivå)",
-        "fall": "Hur mycket ett värde minskat (temperatur, nivå)"
+        "increase": "Summan av alla ökningar (vatten, el, räkneverk uppåt)",
+        "decrease": "Summan av alla minskningar (bränsle, tank, saldo, räkneverk nedåt)",
+        "rise": "Förändring uppåt sedan tidsfönstret började (temperatur, nivå)",
+        "fall": "Förändring nedåt sedan tidsfönstret började (temperatur, nivå)"
       },
-      "description": "En mätare räknar bara uppåt; en nolla betyder att den börjat om. Ett värde som temperatur eller nivå jämförs med värdet när tidsfönstret började.",
+      "description": "Summan av ökningar: en minskning räknas som att räkneverket börjat om. Summan av minskningar: en ökning räknas som en påfyllning och räknas inte. Förändring: värdet nu jämförs med värdet när tidsfönstret började, så brus upp och ner tar ut sig.",
       "default": "count",
       "required": true
     },
@@ -180,6 +181,14 @@
       "default": "default",
       "validator": "^[a-z0-9_-]+$",
       "on_error": "Små bokstäver, siffror, _ och -"
+    },
+    "min_step": {
+      "type": "number",
+      "name": "Minsta steg som räknas",
+      "description": "Gäller summorna. Steg som är mindre än så räknas inte, så att en givare som brusar inte ser ut som förbrukning. Sätt det lite över bruset, till exempel 0,3. 0 = varje steg.",
+      "default": 0,
+      "min": 0,
+      "max": 1000000
     }
   },
   "guide": [
@@ -209,6 +218,7 @@
       "description": "Behövs sällan.",
       "input_fields": [
         "event_gap_s",
+        "min_step",
         "timezone",
         "group",
         "active_value",

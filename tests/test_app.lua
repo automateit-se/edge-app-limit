@@ -129,6 +129,33 @@ check("levels survive a restart", function()
   eq(sim2.last(ALARM).value, 1, "3.5 degrees down across the restart")
 end)
 
+check("fuel: the sum of all falls, a refill in between does not count", function()
+  local fns = { fn(101, "obj/a", "Bränsle", { ["limit.group"] = "test", ["limit.label"] = "bränslet" }) }
+  local _, _, sim = rule({ measure = "decrease", window = "rolling", window_min = 1440, limit_kind = "at_most", limit = 30 }, fns)
+  for _, v in ipairs({ 50, 40, 30, 60, 50 }) do sim.value("obj/a", v) sim.advance(H) end
+  eq(sim.last(ALARM), nil, "30 l used")
+  sim.value("obj/a", 45)
+  eq(sim.last(ALARM).value, 1, "35 l used, although the tank has more than when the day began")
+  assert(sim.last(ALARM).msg:find("bränslet", 1, true), sim.last(ALARM).msg)
+end)
+
+check("smaller steps than the minimum do not add up, larger ones count in full", function()
+  local M = load_app({})
+  local r = M.rule(M.settings({ measure = "decrease", min_step = 0.3 }))
+  local t = T0
+  for i = 1, 100 do t = t + 60 r:value(1, nil, 50 + (i % 2 == 0 and 0.1 or -0.1), t) end
+  eq(r:measure(T0, t + 1), 0, "noise of 0.2 up and down")
+  r:value(1, nil, 49, t + 60)
+  assert(math.abs(r:measure(T0, t + 120) - 0.9) < 1e-9, "a real fall of 0.9 from the last counted value (49.9)")
+  local up = M.rule(M.settings({ measure = "increase", min_step = 0.5 }))
+  up:value(1, nil, 100, T0)
+  up:value(1, nil, 100.3, T0 + 1)
+  up:value(1, nil, 100.6, T0 + 2)
+  assert(math.abs(up:measure(T0, T0 + 3) - 0.6) < 1e-9, "two small steps that together pass the minimum")
+  up:value(1, nil, 100.4, T0 + 3)
+  assert(math.abs(up:measure(T0, T0 + 4) - 0.6) < 1e-9, "a small fall is noise, not a restart")
+end)
+
 check("traffic: three cars in 10 minutes, a car counted once", function()
   local _, _, sim = rule({ measure = "count", window = "rolling", window_min = 10, limit_kind = "at_most", limit = 2, event_gap_s = 20 })
   local function car() sim.value("obj/a", 1) sim.advance(2) sim.value("obj/a", 0) sim.advance(2) sim.value("obj/a", 1) sim.advance(2) sim.value("obj/a", 0) end
