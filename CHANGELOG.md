@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 0.3.1
+
+- The form shows only what the chosen rule needs (`show_if`, App Management 0.1.16): the event and its value for
+  counting, the minutes for a rolling window, the times and days for fixed times, the minimum step for sums. IoT
+  Open's own form shows every field as before.
+
 ## 0.3.0
 
 - **The sum of all falls** (`decrease`): for a fuel gauge, a tank, a balance or a counter counting down. A rise is a
