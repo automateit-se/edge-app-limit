@@ -53,7 +53,13 @@
         "above": "går över gränsvärdet",
         "below": "går under gränsvärdet"
       },
-      "default": "active"
+      "default": "active",
+      "show_if": {
+        "measure": [
+          "count",
+          "distinct"
+        ]
+      }
     },
     "threshold": {
       "type": "number",
@@ -61,7 +67,13 @@
       "description": "Bara för över eller under, till exempel 30 (W).",
       "default": 0,
       "min": -1000000,
-      "max": 1000000
+      "max": 1000000,
+      "show_if": {
+        "event": [
+          "above",
+          "below"
+        ]
+      }
     },
     "window": {
       "type": "option",
@@ -78,7 +90,12 @@
       "name": "Minuter (rullande)",
       "default": 60,
       "min": 1,
-      "max": 10080
+      "max": 10080,
+      "show_if": {
+        "window": [
+          "rolling"
+        ]
+      }
     },
     "schedule_from": {
       "type": "text",
@@ -86,7 +103,12 @@
       "description": "Till exempel 23:00.",
       "default": "23:00",
       "validator": "^$|^([01]?[0-9]|2[0-3])[:.][0-5][0-9]$",
-      "on_error": "Ange en tid, till exempel 23:00"
+      "on_error": "Ange en tid, till exempel 23:00",
+      "show_if": {
+        "window": [
+          "schedule"
+        ]
+      }
     },
     "schedule_to": {
       "type": "text",
@@ -94,7 +116,12 @@
       "description": "Till exempel 06:00. Före starttiden betyder över midnatt.",
       "default": "06:00",
       "validator": "^$|^([01]?[0-9]|2[0-4])[:.][0-5][0-9]$",
-      "on_error": "Ange en tid, till exempel 06:00"
+      "on_error": "Ange en tid, till exempel 06:00",
+      "show_if": {
+        "window": [
+          "schedule"
+        ]
+      }
     },
     "schedule_days": {
       "type": "checkbox",
@@ -117,7 +144,12 @@
         "fri",
         "sat",
         "sun"
-      ]
+      ],
+      "show_if": {
+        "window": [
+          "schedule"
+        ]
+      }
     },
     "limit_kind": {
       "type": "option",
@@ -149,7 +181,13 @@
       "description": "En bil eller ett ljud som ger flera värden räknas en gång. 0 = varje gång.",
       "default": 0,
       "min": 0,
-      "max": 86400
+      "max": 86400,
+      "show_if": {
+        "measure": [
+          "count",
+          "distinct"
+        ]
+      }
     },
     "timezone": {
       "type": "option",
@@ -188,7 +226,13 @@
       "description": "Gäller summorna. Steg som är mindre än så räknas inte, så att en givare som brusar inte ser ut som förbrukning. Sätt det lite över bruset, till exempel 0,3. 0 = varje steg.",
       "default": 0,
       "min": 0,
-      "max": 1000000
+      "max": 1000000,
+      "show_if": {
+        "measure": [
+          "increase",
+          "decrease"
+        ]
+      }
     }
   },
   "guide": [

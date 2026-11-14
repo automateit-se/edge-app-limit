@@ -24,7 +24,7 @@
 -- two are kept in step both ways, and whoever changed last wins, as in För länge 0.4. Events, the alarm and the form
 -- the app last applied are kept retained on the local broker, so a restart goes on where it was.
 
-local VERSION = "0.3.0"
+local VERSION = "0.3.1"
 local PREFIX = "limit"
 local TICK_S = 10
 local SYNC_WAIT_S = 3
