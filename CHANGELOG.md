@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+## 0.3.0
+
+- **The sum of all falls** (`decrease`): for a fuel gauge, a tank, a balance or a counter counting down. A rise is a
+  refill and does not count, so the fuel used in a day is right even with a refill in between.
+- **Minimum step** (`min_step`, *Avancerat*): the sums ignore steps smaller than this, so a noisy sensor does not
+  add up to use. Small steps in the same direction that together pass it are counted.
+- **Clearer choices**: the options say what a change the other way means instead of naming a kind of sensor
+  (*Summan av alla ökningar / minskningar*, *Förändring uppåt / nedåt sedan tidsfönstret började*). The keys are
+  unchanged.
+
 ## 0.2.0
 
 - **Levels that rise or fall**: two new measures, `rise` and `fall`, for a temperature, a tank or a battery. The
